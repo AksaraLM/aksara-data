@@ -159,14 +159,20 @@ def _rec_has_competitor(rec: dict) -> bool:
 
 
 def iter_input(path: str, limit: int | None):
+    n = 0
     with open(path, encoding="utf-8") as f:
-        for i, line in enumerate(f):
-            if limit is not None and i >= limit:
-                break
+        for line in f:
             line = line.strip()
             if not line:
                 continue
-            yield json.loads(line)
+            if limit is not None and n >= limit:
+                break
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            yield rec
+            n += 1
 
 
 def run(input_path: str, output_path: str, schema: str, limit: int | None) -> tuple[int, int]:

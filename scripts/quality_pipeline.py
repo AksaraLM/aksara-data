@@ -153,7 +153,11 @@ def iter_docs(in_dir: str):
                 line = line.strip()
                 if not line:
                     continue
-                yield json.loads(line)
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    # Web-scale corpora have malformed lines; skip and continue.
+                    continue
 
 
 def process(in_dir: str, out_dir: str, threshold: float, docs_per_shard: int) -> dict:
