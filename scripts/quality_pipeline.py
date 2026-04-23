@@ -61,7 +61,7 @@ BAD_PATTERN = re.compile(
 PII_PATTERNS = [
     re.compile(r"\b\d{16}\b"),                 # credit-card style
     re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),  # email
-    re.compile(r"\b(?:08|\+62)\d{8,11}\b"),   # ID phone
+    re.compile(r"(?:\b08|\+62)\d{8,11}\b"),   # ID phone
     re.compile(r"\b\d{16}\b"),                 # NIK
 ]
 

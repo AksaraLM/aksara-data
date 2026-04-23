@@ -67,7 +67,7 @@ CATEGORY_SEEDS = {
     "reasoning": [
         "Seorang pedagang membeli {n1} kilogram beras dengan harga {n2} rupiah per kilogram. Berapa total biayanya?",
         "Jika {n1} dibagi {n2}, berapa sisanya?",
-        "Buktikan bahwa jumlah {n1} dan {n2} adalah bilangan genap.",
+        "Buktikan bahwa jumlah {n1} dan {n2} adalah bilangan {parity}.",
         "Tiga orang berbagi {n1} jeruk secara adil. Berapa bagian masing-masing?",
     ],
     "creative": [
@@ -140,7 +140,10 @@ def generate_prompts(n: int, seed: int = 0) -> list[PromptRecord]:
         for _ in range(want):
             t = rng.choice(templates)
             if cat == "reasoning":
-                prompt = t.format(n1=rng.randint(3, 99), n2=rng.randint(2, 17))
+                n1 = rng.randint(3, 99)
+                n2 = rng.randint(2, 17)
+                parity = "genap" if (n1 + n2) % 2 == 0 else "ganjil"
+                prompt = t.format(n1=n1, n2=n2, parity=parity)
             elif "{topic}" in t:
                 prompt = t.format(topic=rng.choice(TOPIC_POOL))
             else:
@@ -242,7 +245,7 @@ def cmd_respond(args: argparse.Namespace) -> int:
             }
             fout.write(json.dumps(out, ensure_ascii=False) + "\n")
             n += 1
-            if args.max_records and n >= args.max_records:
+            if args.max_records is not None and n >= args.max_records:
                 break
             if n % 500 == 0:
                 log(f"  teacher progress: {n} responses")
