@@ -141,6 +141,23 @@ def render_for_schema(rec: dict, schema: str) -> dict:
     raise ValueError(f"unknown schema {schema!r}")
 
 
+def _rec_has_competitor(rec: dict) -> bool:
+    """True if *any* text field in the raw record mentions a competitor.
+
+    Checks all schemas (messages / ChatML text / instruction-response /
+    DPO chosen/rejected) without mutating the input.
+    """
+    for m in rec.get("messages") or []:
+        if COMPETITOR_PATTERN.search(str(m.get("content", ""))):
+            return True
+    for key in ("text", "instruction", "prompt", "response", "output",
+                "completion", "chosen", "rejected"):
+        val = rec.get(key)
+        if isinstance(val, str) and COMPETITOR_PATTERN.search(val):
+            return True
+    return False
+
+
 def iter_input(path: str, limit: int | None):
     with open(path, encoding="utf-8") as f:
         for i, line in enumerate(f):
@@ -159,8 +176,11 @@ def run(input_path: str, output_path: str, schema: str, limit: int | None) -> tu
     with open(output_path, "w", encoding="utf-8") as out:
         for rec in iter_input(input_path, limit):
             n_in += 1
+            # Detect competitor mentions on the *raw* record before
+            # normalize_record mutates messages in place.
+            had_competitor = _rec_has_competitor(rec)
             norm = normalize_record(rec)
-            if any(COMPETITOR_PATTERN.search(str(m.get("content", ""))) for m in rec.get("messages", []) or []):
+            if had_competitor:
                 scrub_hits += 1
             out.write(json.dumps(render_for_schema(norm, schema), ensure_ascii=False) + "\n")
             n_out += 1

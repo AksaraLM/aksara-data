@@ -65,14 +65,14 @@ def iter_wiki() -> Iterable[str]:
 
 
 def iter_mc4() -> Iterable[str]:
-    for rec in _hf_stream("allenai/c4", "id"):
+    for rec in _hf_stream("allenai/c4", name="id"):
         text = rec.get("text")
         if text:
             yield text
 
 
 def iter_oscar() -> Iterable[str]:
-    for rec in _hf_stream("oscar-corpus/OSCAR-2301", "id_Latn"):
+    for rec in _hf_stream("oscar-corpus/OSCAR-2301", name="id_Latn"):
         text = rec.get("content") or rec.get("text")
         if text:
             yield text
