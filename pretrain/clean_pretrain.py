@@ -6,7 +6,7 @@ This produces v1 with exact-dedup + lang-filter + gopher-filter + proper split.
 import os, re, json, hashlib
 from collections import Counter
 from datasets import load_dataset, Dataset, concatenate_datasets
-import fasttext
+from filters import gopher_ok, classify_lang_batch, lang_ok
 
 os.makedirs("out/clean", exist_ok=True)
 
@@ -42,32 +42,6 @@ print(f"  kept {len(ds)}")
 
 # 4. Gopher filter
 print("[4/7] Gopher filter…")
-nav_re = re.compile(r"(Log in|Sign up|Sign in|Cookies|Terms of Service|Privacy Policy|Daftar isi|Halaman utama)", re.I)
-url_re = re.compile(r"https?://([^/\s)]+)")
-BLOCK = {
-    "arenasbo88.com", "malehealthcenter.com", "wearebrewstuds.com",
-    "hargano.com", "gpgo.in", "159.65.11.81",
-    "sbobet.com", "sbobet88.com", "sbobet365.com", "bola88.com",
-    "togel.com", "hongkongpools.com", "prediksisgp.com",
-}
-def gopher_ok(t):
-    if not t or len(t) < 80: return False
-    lines = t.splitlines()
-    non_empty = [l for l in lines if l.strip()]
-    if not non_empty: return False
-    avg_w = sum(len(l.split()) for l in non_empty) / len(non_empty)
-    if avg_w < 3: return False
-    alpha = sum(1 for c in t if c.isalpha())
-    if alpha / len(t) < 0.65: return False
-    ell = sum(1 for l in non_empty if l.rstrip().endswith("…") or l.rstrip().endswith("..."))
-    if ell / len(non_empty) > 0.3: return False
-    for dom in url_re.findall(t):
-        d = dom.lower().lstrip("www.")
-        if d in BLOCK: return False
-    nh = len(nav_re.findall(t))
-    if nh > 5 and nh / max(len(non_empty), 1) > 0.05: return False
-    return True
-
 before = len(ds)
 ds = ds.filter(gopher_ok, input_columns=["text"], num_proc=4)
 stats["after_gopher"] = len(ds)
@@ -75,25 +49,7 @@ print(f"  kept {len(ds)}/{before}")
 
 # 5. GlotLID
 print("[5/7] GlotLID…")
-lid = fasttext.load_model("glotlid.bin")
-def classify(batch):
-    preds, probs = [], []
-    for t in batch["text"]:
-        x = (t or "").replace("\n", " ").replace("\r", " ")[:2000].strip()
-        if not x:
-            preds.append("none"); probs.append(0.0); continue
-        lbl, p = lid.predict(x, k=1)
-        preds.append(lbl[0].replace("__label__", ""))
-        probs.append(float(p[0]))
-    return {"lid_label": preds, "lid_prob": probs}
-ds = ds.map(classify, batched=True, batch_size=512, num_proc=4, desc="glotlid")
-
-def lang_ok(ex):
-    s = ex["source"] or ""
-    lbl = ex["lid_label"]; p = ex["lid_prob"]
-    if s.startswith("nusax-"): return True
-    if lbl == "ind_Latn" and p >= 0.60: return True
-    return False
+ds = ds.map(classify_lang_batch, batched=True, batch_size=512, num_proc=4, desc="glotlid")
 
 before = len(ds)
 ds = ds.filter(lang_ok, num_proc=4)
